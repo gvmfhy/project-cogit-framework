@@ -1,30 +1,28 @@
 #!/usr/bin/env python3
 """
-Stage 2: Encoding - Transform per-turn states into HDC hypervectors
-Uses TorchHD/hdlib semantics with clear binding/bundling/permutation ops and fixed seeds.
+Stage 2: HDC Projection and Encoding
+Projects real activations to HDC space with multiple strategies to test H3 hypothesis.
+Supports random, learned, and padding projections.
 """
 
 import os
-# Set PYTHONHASHSEED for deterministic execution
 os.environ['PYTHONHASHSEED'] = '42'
+
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 import random
 import numpy as np
 import torch
+import torch.nn as nn
+import torch.optim as optim
 import json
 import jsonlines
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 import yaml
-
-# Import TorchHD for hyperdimensional computing
-try:
-    import torch_hd
-    HDC_AVAILABLE = True
-except ImportError:
-    print("Warning: TorchHD not available. Using mock HDC operations.")
-    HDC_AVAILABLE = False
+from tqdm import tqdm
 
 # Deterministic seeding
 random.seed(42)
@@ -34,250 +32,379 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed(42)
     torch.cuda.manual_seed_all(42)
 
-class CogitEncoder:
-    """
-    Encodes cognitive states into hyperdimensional cogit vectors.
-    Implements HDC operations: bind ≈ XOR or circular convolution, bundle ≈ (normalized) sum, permute ≈ fixed permutation
-    """
+
+def load_config() -> Dict[str, Any]:
+    """Load configuration from config.yaml"""
+    config_file = Path("config.yaml")
+    if config_file.exists():
+        with open(config_file) as f:
+            return yaml.safe_load(f)
+    return {}
+
+
+class ProjectionStrategy:
+    """Base class for projection strategies"""
     
-    def __init__(self, dim: int = 10000, model: str = 'binary'):
-        self.dim = dim
-        self.model = model  # 'binary' or 'real'
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    def __init__(self, input_dim: int, output_dim: int = 10000):
+        self.input_dim = input_dim
+        self.output_dim = output_dim
         
-        # Generate deterministic basis vectors for cognitive dimensions
-        torch.manual_seed(42)  # Ensure reproducible basis vectors
-        self.basis_vectors = self._create_basis_vectors()
-        self.permutations = self._create_permutations()
+    def project(self, activation: torch.Tensor) -> torch.Tensor:
+        """Project activation to HDC space"""
+        raise NotImplementedError
         
-    def _create_basis_vectors(self) -> Dict[str, torch.Tensor]:
-        """Create random basis vectors for each cognitive dimension"""
-        dimensions = ['agreement', 'certainty', 'openness', 'emotional_tone', 'social_alignment']
-        basis = {}
-        
-        for dim_name in dimensions:
-            if self.model == 'binary':
-                # Binary hypervectors: {-1, +1}
-                vec = torch.randint(0, 2, (self.dim,), device=self.device) * 2 - 1
-            else:
-                # Real hypervectors: normalized Gaussian
-                vec = torch.randn(self.dim, device=self.device)
-                vec = vec / torch.norm(vec)  # Normalize to unit length
-            
-            basis[dim_name] = vec.float()
-            
-        return basis
+    def inverse_project(self, cogit: torch.Tensor) -> torch.Tensor:
+        """Project cogit back to activation space"""
+        raise NotImplementedError
+
+
+class RandomProjection(ProjectionStrategy):
+    """Random projection using fixed random matrix"""
     
-    def _create_permutations(self) -> Dict[str, torch.Tensor]:
-        """Create fixed permutation indices for each cognitive dimension"""
-        dimensions = list(self.basis_vectors.keys())
-        permutations = {}
+    def __init__(self, input_dim: int, output_dim: int = 10000):
+        super().__init__(input_dim, output_dim)
+        # Create fixed random projection matrices
+        torch.manual_seed(42)
+        self.projection_matrix = torch.randn(input_dim, output_dim) / np.sqrt(input_dim)
+        self.inverse_matrix = torch.randn(output_dim, input_dim) / np.sqrt(output_dim)
         
-        for i, dim_name in enumerate(dimensions):
-            # Create deterministic permutation based on dimension index
-            torch.manual_seed(42 + i)  
-            perm = torch.randperm(self.dim, device=self.device)
-            permutations[dim_name] = perm
-            
-        return permutations
-    
-    def bind(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-        """
-        HDC bind operation ≈ XOR or circular convolution (per chosen VSA model)
-        Property: Approximate inverse a ⊛ b ⊛ b ≈ a
-        """
-        if HDC_AVAILABLE:
-            return torch_hd.bind(a, b)
-        else:
-            # Mock implementation: XOR for binary, elementwise multiplication for real
-            if self.model == 'binary':
-                return a * b  # XOR equivalent for {-1, +1} vectors
-            else:
-                return a * b  # Elementwise product approximation
-    
-    def bundle(self, vectors: List[torch.Tensor]) -> torch.Tensor:
-        """
-        HDC bundle operation ≈ (normalized) sum
-        Property: Similarity preservation sim(a ⊕ b, a) > threshold
-        """
-        if HDC_AVAILABLE:
-            return torch_hd.bundle(vectors)
-        else:
-            # Mock implementation: sum and normalize/sign
-            bundled = torch.stack(vectors).sum(dim=0)
-            
-            if self.model == 'binary':
-                return torch.sign(bundled)  # Majority rule for binary vectors
-            else:
-                return bundled / torch.norm(bundled)  # Normalized sum for real vectors
-    
-    def permute(self, vector: torch.Tensor, permutation: torch.Tensor) -> torch.Tensor:
-        """
-        HDC permute operation ≈ fixed permutation
-        Property: Invertible π⁻¹(π(a)) = a
-        """
-        if HDC_AVAILABLE:
-            return torch_hd.permute(vector, permutation)
-        else:
-            # Mock implementation: apply permutation indices
-            return vector[permutation]
-    
-    def encode_cognitive_state(self, state: Dict[str, float]) -> torch.Tensor:
-        """
-        Encode cognitive state into cogit hypervector using HDC operations.
-        Formula: cogit = π₁(certainty ⊛ c_basis) ⊕ π₂(agreement ⊛ a_basis) ⊕ ...
-        """
-        encoded_dims = []
+    def project(self, activation: torch.Tensor) -> torch.Tensor:
+        """Random projection to HDC space"""
+        # Handle batch and sequence dimensions
+        original_shape = activation.shape
+        if len(original_shape) > 2:
+            # Flatten all but last dimension
+            activation = activation.view(-1, self.input_dim)
         
-        for dim_name, value in state.items():
-            if dim_name not in self.basis_vectors:
-                continue
-                
-            # Convert scalar value to hypervector (simple scaling)
-            if self.model == 'binary':
-                value_vec = torch.full((self.dim,), value, device=self.device)
-                value_vec = torch.sign(value_vec)  # Binarize
-            else:
-                value_vec = torch.full((self.dim,), value, device=self.device)
-            
-            # Bind value with basis vector: value ⊛ basis
-            bound = self.bind(value_vec, self.basis_vectors[dim_name])
-            
-            # Apply dimension-specific permutation: π(bound)
-            permuted = self.permute(bound, self.permutations[dim_name])
-            
-            encoded_dims.append(permuted)
+        # Project
+        cogit = torch.matmul(activation, self.projection_matrix)
         
-        # Bundle all dimensions: ⊕ all encoded dimensions
-        if encoded_dims:
-            cogit = self.bundle(encoded_dims)
-        else:
-            # Fallback: zero vector
-            cogit = torch.zeros(self.dim, device=self.device)
+        # Normalize for HDC
+        cogit = torch.tanh(cogit)  # Bound to [-1, 1]
         
         return cogit
-
-def load_params() -> Dict[str, Any]:
-    """Load encoding parameters from params.yaml"""
-    params_file = Path("params.yaml")
-    if params_file.exists():
-        with open(params_file) as f:
-            params = yaml.safe_load(f)
-            return params.get('encode', {})
-    
-    # Default parameters
-    return {
-        'vector_dim': 10000,
-        'hdc_model': 'binary',  # 'binary' or 'real'
-        'seed': 42
-    }
-
-def load_conversations(data_dir: Path) -> List[Dict[str, Any]]:
-    """Load conversation data from JSONL files"""
-    conversations = []
-    
-    for jsonl_file in data_dir.glob("*.jsonl"):
-        with jsonlines.open(jsonl_file) as reader:
-            conversations.extend(list(reader))
-    
-    return conversations
-
-def main():
-    """Main encoding pipeline"""
-    print("🔢 Stage 2: Starting Encoding Pipeline")
-    print("=" * 50)
-    
-    # Load parameters
-    params = load_params()
-    print(f"Parameters: {params}")
-    
-    # Set additional seeds from parameters
-    if 'seed' in params:
-        torch.manual_seed(params['seed'])
-        random.seed(params['seed'])
-        np.random.seed(params['seed'])
-    
-    # Load conversation data
-    data_dir = Path("data/raw/sims")
-    if not data_dir.exists():
-        raise FileNotFoundError(f"Input directory {data_dir} does not exist. Run Stage 1 first.")
-    
-    conversations = load_conversations(data_dir)
-    print(f"Loaded {len(conversations)} conversation turns")
-    
-    # Initialize encoder
-    encoder = CogitEncoder(
-        dim=params['vector_dim'],
-        model=params['hdc_model']
-    )
-    
-    # Create output directory
-    output_dir = Path("data/processed/cogits")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Encode cognitive states
-    encoded_cogits = []
-    
-    for turn_data in conversations:
-        cognitive_state = turn_data['cognitive_state']
         
-        # Encode to cogit hypervector
-        cogit = encoder.encode_cognitive_state(cognitive_state)
+    def inverse_project(self, cogit: torch.Tensor) -> torch.Tensor:
+        """Random projection back to activation space"""
+        return torch.matmul(cogit, self.inverse_matrix)
+
+
+class LearnedProjection(ProjectionStrategy):
+    """Learned projection using autoencoder approach"""
+    
+    def __init__(self, input_dim: int, output_dim: int = 10000):
+        super().__init__(input_dim, output_dim)
         
-        # Prepare output data
-        cogit_data = {
-            'conversation_id': turn_data['conversation_id'],
-            'turn': turn_data['turn'],
-            'speaker': turn_data['speaker'],
-            'topic': turn_data['topic'],
-            'original_state': cognitive_state,
-            'cogit_vector': cogit.cpu().numpy().tolist(),  # Convert to list for JSON serialization
+        # Build encoder and decoder networks
+        hidden_dim = (input_dim + output_dim) // 2
+        
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, output_dim),
+            nn.Tanh()  # Bound outputs for HDC
+        )
+        
+        self.decoder = nn.Sequential(
+            nn.Linear(output_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, input_dim)
+        )
+        
+        self.is_trained = False
+        
+    def train_projection(self, activation_data: List[torch.Tensor], epochs: int = 100):
+        """Train the projection to preserve information"""
+        print("Training learned projection...")
+        
+        optimizer = optim.Adam(
+            list(self.encoder.parameters()) + list(self.decoder.parameters()),
+            lr=0.001
+        )
+        criterion = nn.MSELoss()
+        
+        for epoch in range(epochs):
+            total_loss = 0
+            for activation in activation_data:
+                # Handle different shapes
+                if len(activation.shape) > 2:
+                    activation = activation.view(-1, self.input_dim)
+                
+                # Forward pass
+                cogit = self.encoder(activation)
+                reconstructed = self.decoder(cogit)
+                
+                # Compute loss
+                loss = criterion(reconstructed, activation)
+                
+                # Backward pass
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                
+                total_loss += loss.item()
+            
+            if (epoch + 1) % 20 == 0:
+                avg_loss = total_loss / len(activation_data)
+                print(f"  Epoch {epoch + 1}/{epochs}, Loss: {avg_loss:.6f}")
+        
+        self.is_trained = True
+        print("✓ Learned projection trained")
+        
+    def project(self, activation: torch.Tensor) -> torch.Tensor:
+        """Learned projection to HDC space"""
+        if not self.is_trained:
+            print("Warning: Using untrained learned projection")
+        
+        # Handle batch and sequence dimensions
+        original_shape = activation.shape
+        if len(original_shape) > 2:
+            activation = activation.view(-1, self.input_dim)
+        
+        with torch.no_grad():
+            cogit = self.encoder(activation)
+        
+        return cogit
+        
+    def inverse_project(self, cogit: torch.Tensor) -> torch.Tensor:
+        """Learned projection back to activation space"""
+        with torch.no_grad():
+            return self.decoder(cogit)
+
+
+class PaddingProjection(ProjectionStrategy):
+    """Simple padding/truncation projection"""
+    
+    def __init__(self, input_dim: int, output_dim: int = 10000):
+        super().__init__(input_dim, output_dim)
+        
+    def project(self, activation: torch.Tensor) -> torch.Tensor:
+        """Pad or truncate to reach HDC dimension"""
+        # Handle batch and sequence dimensions
+        original_shape = activation.shape
+        if len(original_shape) > 2:
+            activation = activation.view(-1, self.input_dim)
+        
+        if self.input_dim < self.output_dim:
+            # Pad with zeros
+            padding = torch.zeros(activation.shape[0], self.output_dim - self.input_dim)
+            cogit = torch.cat([activation, padding], dim=-1)
+        else:
+            # Truncate
+            cogit = activation[:, :self.output_dim]
+        
+        # Normalize for HDC
+        cogit = torch.tanh(cogit)
+        
+        return cogit
+        
+    def inverse_project(self, cogit: torch.Tensor) -> torch.Tensor:
+        """Inverse padding/truncation"""
+        if self.input_dim < self.output_dim:
+            # Remove padding
+            return cogit[:, :self.input_dim]
+        else:
+            # Pad back (information lost)
+            padding = torch.zeros(cogit.shape[0], self.input_dim - self.output_dim)
+            return torch.cat([cogit, padding], dim=-1)
+
+
+class HDCEncoder:
+    """Encodes activations into HDC cogit vectors using specified projection strategy"""
+    
+    def __init__(self, projection_strategy: ProjectionStrategy, hdc_dim: int = 10000):
+        self.projection = projection_strategy
+        self.hdc_dim = hdc_dim
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
+    def encode_activation(self, activation: np.ndarray) -> torch.Tensor:
+        """Convert activation to cogit hypervector"""
+        # Convert to tensor
+        if isinstance(activation, np.ndarray):
+            activation = torch.tensor(activation, dtype=torch.float32)
+        
+        # Project to HDC space
+        cogit = self.projection.project(activation)
+        
+        return cogit
+        
+    def decode_cogit(self, cogit: torch.Tensor) -> torch.Tensor:
+        """Convert cogit back to activation space"""
+        return self.projection.inverse_project(cogit)
+
+
+def process_activation_pairs(pairs_file: Path, strategy_name: str, input_dim: int) -> Dict[str, Any]:
+    """Process activation pairs with specified projection strategy"""
+    print(f"\n🔄 Processing with {strategy_name} projection...")
+    
+    # Create projection strategy
+    if strategy_name == "random":
+        projection = RandomProjection(input_dim)
+    elif strategy_name == "learned":
+        projection = LearnedProjection(input_dim)
+    elif strategy_name == "padding":
+        projection = PaddingProjection(input_dim)
+    else:
+        raise ValueError(f"Unknown projection strategy: {strategy_name}")
+    
+    # Load activation pairs
+    pairs = []
+    with jsonlines.open(pairs_file) as reader:
+        pairs = list(reader)
+    
+    # If using learned projection, train it first
+    if strategy_name == "learned" and pairs:
+        # Collect all activations for training
+        all_activations = []
+        for pair in pairs[:100]:  # Use subset for training
+            low_act = torch.tensor(pair['low_activation'], dtype=torch.float32)
+            high_act = torch.tensor(pair['high_activation'], dtype=torch.float32)
+            all_activations.extend([low_act, high_act])
+        
+        # Train the projection
+        projection.train_projection(all_activations, epochs=50)
+    
+    # Create encoder
+    encoder = HDCEncoder(projection)
+    
+    # Process pairs
+    encoded_pairs = []
+    reconstruction_errors = []
+    
+    for pair in tqdm(pairs, desc=f"Encoding with {strategy_name}"):
+        # Encode low and high activations
+        low_act = np.array(pair['low_activation'])
+        high_act = np.array(pair['high_activation'])
+        
+        low_cogit = encoder.encode_activation(low_act)
+        high_cogit = encoder.encode_activation(high_act)
+        
+        # Test reconstruction quality
+        low_reconstructed = encoder.decode_cogit(low_cogit)
+        high_reconstructed = encoder.decode_cogit(high_cogit)
+        
+        # Flatten for comparison
+        low_act_flat = torch.tensor(low_act).flatten()
+        high_act_flat = torch.tensor(high_act).flatten()
+        
+        # Ensure dimensions match for error calculation
+        min_dim = min(low_act_flat.shape[0], low_reconstructed.shape[0])
+        low_error = torch.mean((low_act_flat[:min_dim] - low_reconstructed.flatten()[:min_dim]) ** 2).item()
+        high_error = torch.mean((high_act_flat[:min_dim] - high_reconstructed.flatten()[:min_dim]) ** 2).item()
+        
+        reconstruction_errors.append((low_error + high_error) / 2)
+        
+        # Store encoded pair
+        encoded_pair = {
+            'dimension': pair['dimension'],
+            'layer': pair['layer'],
+            'low_text': pair['low_text'],
+            'high_text': pair['high_text'],
+            'low_cogit': low_cogit.cpu().numpy().tolist(),
+            'high_cogit': high_cogit.cpu().numpy().tolist(),
+            'projection_strategy': strategy_name,
+            'reconstruction_error': (low_error + high_error) / 2,
             'timestamp': datetime.now().isoformat()
         }
-        
-        encoded_cogits.append(cogit_data)
+        encoded_pairs.append(encoded_pair)
     
-    # Save encoded cogits
-    output_file = output_dir / f"cogits_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pt"
-    torch.save({
-        'cogits': encoded_cogits,
-        'encoder_params': {
-            'dim': params['vector_dim'],
-            'model': params['hdc_model'],
-            'basis_vectors': {k: v.cpu() for k, v in encoder.basis_vectors.items()},
-            'permutations': {k: v.cpu() for k, v in encoder.permutations.items()}
-        },
-        'metadata': {
-            'num_cogits': len(encoded_cogits),
-            'hdc_library': 'torchhd' if HDC_AVAILABLE else 'mock',
-            'timestamp': datetime.now().isoformat(),
-            'seed': params['seed']
-        }
-    }, output_file)
+    # Calculate statistics
+    avg_reconstruction_error = np.mean(reconstruction_errors)
+    
+    return {
+        'encoded_pairs': encoded_pairs,
+        'avg_reconstruction_error': avg_reconstruction_error,
+        'projection': projection
+    }
+
+
+def main():
+    """Main encoding pipeline with multiple projection strategies"""
+    print("🔢 Stage 2: HDC Projection and Encoding Pipeline")
+    print("=" * 50)
+    
+    # Load configuration
+    config = load_config()
+    model_name = config['model']['name']
+    model_config = config['model']['configs'].get(model_name, {})
+    input_dim = model_config.get('hidden_dim', 768)
+    
+    paths_mode = config['paths']['mode']
+    base_path = config['paths'][paths_mode]['data_dir']
+    
+    print(f"Model: {model_name}")
+    print(f"Input dimension: {input_dim}")
+    print(f"HDC dimension: {config['hdc']['dimension']}")
+    
+    # Find latest activation pairs file
+    input_dir = Path(base_path) / "raw" / "activations"
+    pairs_files = list(input_dir.glob("activation_pairs_*.jsonl"))
+    
+    if not pairs_files:
+        raise FileNotFoundError("No activation pairs found. Run Stage 1 first.")
+    
+    latest_pairs = sorted(pairs_files)[-1]
+    print(f"Using activation file: {latest_pairs.name}")
+    
+    # Create output directory
+    output_dir = Path(base_path) / "processed" / "cogits"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Test each projection strategy
+    projection_strategies = config['projections']['strategies']
+    results = {}
+    
+    for strategy in projection_strategies:
+        result = process_activation_pairs(latest_pairs, strategy, input_dim)
+        results[strategy] = result
+        
+        # Save encoded pairs
+        output_file = output_dir / f"cogits_{strategy}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+        with jsonlines.open(output_file, 'w') as writer:
+            writer.write_all(result['encoded_pairs'])
+        
+        print(f"✓ {strategy}: {len(result['encoded_pairs'])} pairs encoded")
+        print(f"  Avg reconstruction error: {result['avg_reconstruction_error']:.6f}")
+        print(f"  Saved to: {output_file.name}")
+    
+    # Compare strategies
+    print("\n📊 Projection Strategy Comparison:")
+    print("-" * 40)
+    for strategy, result in results.items():
+        print(f"{strategy:12s}: reconstruction error = {result['avg_reconstruction_error']:.6f}")
+    
+    # Find best strategy (lowest reconstruction error)
+    best_strategy = min(results.items(), key=lambda x: x[1]['avg_reconstruction_error'])[0]
+    print(f"\n🏆 Best strategy: {best_strategy}")
     
     # Generate metrics
     metrics = {
-        'total_cogits_encoded': len(encoded_cogits),
-        'vector_dimension': params['vector_dim'],
-        'hdc_model': params['hdc_model'],
-        'hdc_library_available': HDC_AVAILABLE,
-        'output_file': str(output_file),
-        'deterministic_encoding': True,
+        'model': model_name,
+        'input_dim': input_dim,
+        'hdc_dim': config['hdc']['dimension'],
+        'projection_strategies': projection_strategies,
+        'strategy_results': {
+            strategy: {
+                'num_pairs': len(result['encoded_pairs']),
+                'avg_reconstruction_error': result['avg_reconstruction_error']
+            }
+            for strategy, result in results.items()
+        },
+        'best_strategy': best_strategy,
         'timestamp': datetime.now().isoformat(),
-        'seed': params['seed'],
         'pythonhashseed': os.environ.get('PYTHONHASHSEED', 'not_set')
     }
     
     # Save metrics
-    metrics_dir = Path("results")
-    metrics_dir.mkdir(parents=True, exist_ok=True)
-    with open(metrics_dir / "encode_metrics.json", 'w') as f:
+    results_dir = Path(config['paths'][paths_mode]['results_dir'])
+    with open(results_dir / "stage2_metrics.json", 'w') as f:
         json.dump(metrics, f, indent=2)
     
-    print(f"✓ Encoding complete: {len(encoded_cogits)} cogits saved to {output_file}")
-    print(f"✓ Metrics saved to results/encode_metrics.json")
-    print(f"✓ HDC Library Available: {HDC_AVAILABLE}")
-    print(f"✓ PYTHONHASHSEED: {os.environ.get('PYTHONHASHSEED')}")
+    print(f"\n✓ Stage 2 complete!")
+    print(f"✓ Tested {len(projection_strategies)} projection strategies")
+    print(f"✓ {best_strategy} projection shows best reconstruction")
+    print(f"✓ Ready for operator learning in Stage 3")
+
 
 if __name__ == "__main__":
     main()

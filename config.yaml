@@ -1,0 +1,92 @@
+# Configuration for model-agnostic cogit manipulation platform
+# Change model_name to switch between GPT-2 and larger models
+
+model:
+  # Model selection - change this to switch models
+  name: "gpt2"  # Options: "gpt2", "gpt2-medium", "meta-llama/Llama-2-7b-chat-hf"
+  
+  # Model-specific configurations
+  configs:
+    gpt2:
+      hidden_dim: 768
+      num_layers: 12
+      num_heads: 12
+      layer_access_pattern: "transformer.h.{}.attn"  # How to access layers
+      device: "cpu"  # Use CPU for local testing
+      max_length: 100
+      
+    gpt2-medium:
+      hidden_dim: 1024
+      num_layers: 24
+      num_heads: 16
+      layer_access_pattern: "transformer.h.{}.attn"
+      device: "cpu"
+      max_length: 100
+      
+    "meta-llama/Llama-2-7b-chat-hf":
+      hidden_dim: 4096
+      num_layers: 32
+      num_heads: 32
+      layer_access_pattern: "model.layers.{}.self_attn"
+      device: "cuda"  # Use GPU on RunPod
+      max_length: 200
+
+# HDC configuration
+hdc:
+  dimension: 10000
+  model: "binary"  # "binary" or "real"
+  
+# Projection strategies to test
+projections:
+  strategies: ["random", "learned", "padding"]
+  
+# Paths - adjust for local vs RunPod
+paths:
+  # Local paths for testing
+  local:
+    data_dir: "./data"
+    model_cache: "./models/cache"
+    results_dir: "./results"
+    
+  # RunPod paths (persistent storage)
+  runpod:
+    data_dir: "/workspace/data"
+    model_cache: "/workspace/models/cache"
+    results_dir: "/workspace/results"
+    
+  # Use local or runpod based on environment
+  mode: "local"  # Change to "runpod" when on GPU
+  
+# Experiment configuration
+experiment:
+  # Cognitive dimensions to manipulate
+  dimensions:
+    - name: "certainty"
+      low_examples: ["I might think", "Perhaps it's", "It could be", "Maybe"]
+      high_examples: ["I definitely know", "It's certain that", "Absolutely", "Without doubt"]
+      
+    - name: "agreement"  
+      low_examples: ["I disagree", "That's wrong", "No way", "Incorrect"]
+      high_examples: ["I agree", "That's right", "Exactly", "Correct"]
+      
+    - name: "emotion"
+      low_examples: ["neutral statement", "basic fact", "simple observation"]
+      high_examples: ["amazing!", "terrible!", "wonderful!", "horrible!"]
+      
+  # Layers to extract activations from
+  extraction_layers: [5, 6, 7]  # Middle layers often most semantic
+  
+  # Training configuration
+  training:
+    num_samples: 100
+    epochs: 50
+    learning_rate: 0.001
+    batch_size: 16
+    
+  # Behavioral testing
+  testing:
+    num_test_samples: 20
+    generation_params:
+      temperature: 0.7
+      top_p: 0.9
+      max_new_tokens: 50
