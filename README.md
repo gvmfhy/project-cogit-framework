@@ -108,7 +108,7 @@ python sentiment_phase3_improved.py
 
 ## Key Finding
 
-Mathematical operators can learn to manipulate language model cognition, but only with diverse training data (50 examples worked, 10 failed). The success depends on data diversity, not architectural complexity.
+Math can steer models. It is likely to steer minds. 
 
 ## Research Team
 
