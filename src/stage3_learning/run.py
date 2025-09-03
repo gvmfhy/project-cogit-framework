@@ -245,26 +245,104 @@ class BehavioralTester:
             )
             original_text = self.adapter.tokenizer.decode(original_output[0], skip_special_tokens=True)
             
-            # Generate text with manipulated activation (simplified - actual injection is complex)
-            # For now, we'll analyze the difference in cogit space
+            # Generate text with manipulated activation - ACTUAL INJECTION
+            modified_states = {layer: manipulated_activation}
+            modified_text = self.adapter.inject_hidden_states(prompt, modified_states, layer)
+            
+            # Calculate cognitive change metrics
             cogit_change = torch.norm(manipulated_cogit - original_cogit).item()
+            
+            # Analyze behavioral change in outputs
+            from difflib import SequenceMatcher
+            text_similarity = SequenceMatcher(None, original_text, modified_text).ratio()
+            
+            # Check for dimension-specific markers
+            behavioral_markers = self._check_behavioral_markers(
+                original_text, modified_text, target_dimension
+            )
             
             result = {
                 'prompt': prompt,
                 'original_output': original_text,
+                'modified_output': modified_text,
                 'cogit_change_magnitude': cogit_change,
+                'text_similarity': text_similarity,
+                'behavioral_change_detected': modified_text != original_text,
+                'behavioral_markers': behavioral_markers,
                 'target_dimension': target_dimension
             }
             results.append(result)
         
         # Analyze results
         avg_change = np.mean([r['cogit_change_magnitude'] for r in results])
+        behavioral_changes = sum(1 for r in results if r['behavioral_change_detected'])
+        avg_similarity = np.mean([r['text_similarity'] for r in results])
+        
+        # Calculate dimension-specific success rate
+        dimension_success = sum(1 for r in results if r['behavioral_markers']['success']) / len(results) if results else 0
         
         return {
             'individual_results': results,
             'average_cogit_change': avg_change,
-            'dimension': target_dimension
+            'behavioral_changes_detected': f"{behavioral_changes}/{len(results)}",
+            'average_text_similarity': avg_similarity,
+            'dimension_success_rate': dimension_success,
+            'dimension': target_dimension,
+            'summary': f"Operator induced behavioral changes in {behavioral_changes}/{len(results)} cases with {dimension_success:.1%} success rate for {target_dimension}"
         }
+    
+    def _check_behavioral_markers(self, original: str, modified: str, dimension: str) -> Dict[str, Any]:
+        """Check if the modified text shows expected behavioral changes for the dimension"""
+        
+        markers = {'success': False, 'details': []}
+        
+        if dimension == 'certainty':
+            # Check for certainty markers
+            low_certainty_words = ['might', 'perhaps', 'maybe', 'could', 'possibly', 'think']
+            high_certainty_words = ['definitely', 'certainly', 'absolutely', 'know', 'sure', 'must']
+            
+            original_low = sum(1 for word in low_certainty_words if word.lower() in original.lower())
+            original_high = sum(1 for word in high_certainty_words if word.lower() in original.lower())
+            modified_low = sum(1 for word in low_certainty_words if word.lower() in modified.lower())
+            modified_high = sum(1 for word in high_certainty_words if word.lower() in modified.lower())
+            
+            # Success: decreased uncertainty words OR increased certainty words
+            if modified_low < original_low or modified_high > original_high:
+                markers['success'] = True
+                markers['details'].append(f"Uncertainty words: {original_low}→{modified_low}")
+                markers['details'].append(f"Certainty words: {original_high}→{modified_high}")
+                
+        elif dimension == 'agreement':
+            # Check for agreement markers
+            disagree_words = ['disagree', 'wrong', 'no', 'incorrect', 'false', "don't", "not"]
+            agree_words = ['agree', 'right', 'yes', 'correct', 'true', 'exactly', 'indeed']
+            
+            original_disagree = sum(1 for word in disagree_words if word.lower() in original.lower())
+            original_agree = sum(1 for word in agree_words if word.lower() in original.lower())
+            modified_disagree = sum(1 for word in disagree_words if word.lower() in modified.lower())
+            modified_agree = sum(1 for word in agree_words if word.lower() in modified.lower())
+            
+            if modified_disagree < original_disagree or modified_agree > original_agree:
+                markers['success'] = True
+                markers['details'].append(f"Disagreement: {original_disagree}→{modified_disagree}")
+                markers['details'].append(f"Agreement: {original_agree}→{modified_agree}")
+                
+        elif dimension == 'emotion':
+            # Check for emotional intensity
+            import re
+            original_exclamations = len(re.findall(r'!', original))
+            modified_exclamations = len(re.findall(r'!', modified))
+            
+            emotion_words = ['amazing', 'terrible', 'wonderful', 'horrible', 'fantastic', 'awful']
+            original_emotion = sum(1 for word in emotion_words if word.lower() in original.lower())
+            modified_emotion = sum(1 for word in emotion_words if word.lower() in modified.lower())
+            
+            if modified_exclamations > original_exclamations or modified_emotion > original_emotion:
+                markers['success'] = True
+                markers['details'].append(f"Exclamations: {original_exclamations}→{modified_exclamations}")
+                markers['details'].append(f"Emotion words: {original_emotion}→{modified_emotion}")
+        
+        return markers
 
 
 def main():
@@ -423,6 +501,17 @@ def main():
         )
         
         print(f"  Average cogit change: {behavior_results['average_cogit_change']:.4f}")
+        print(f"  Behavioral changes: {behavior_results['behavioral_changes_detected']}")
+        print(f"  Success rate: {behavior_results['dimension_success_rate']:.1%}")
+        
+        # Show example of behavioral change
+        if behavior_results['individual_results']:
+            example = behavior_results['individual_results'][0]
+            if example['behavioral_change_detected']:
+                print(f"\n  Example behavioral change:")
+                print(f"    Original: {example['original_output'][:100]}...")
+                print(f"    Modified: {example['modified_output'][:100]}...")
+                print(f"    Markers: {example['behavioral_markers']['details']}")
         
         # Add to results
         all_results['certainty']['behavioral_test'] = behavior_results
