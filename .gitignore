@@ -1,0 +1,30 @@
+# Virtual environments
+venv/
+venv_clean/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large model files (keep research models)
+# *.pt files are kept for reproducibility
+
+# Large raw data files (keep experiment results)
+# Keep important research data files

@@ -1,0 +1,37 @@
+[
+  {
+    "prompt": "The report is on the table and",
+    "baseline": "the table and looking forward to seeing it.<|endoftext|>",
+    "intervened": "the table and\u2014\u2014\u2014\u2014\u2014\u2014\u2014 \u2014\u2014\u2014,\u2014\u2014\u2014\u2014 or\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014,,\u2014\u2014\u2014\u2014"
+  },
+  {
+    "prompt": "I walked into the room and saw",
+    "baseline": "room and saw a big black box with an image of a man standing on a hillside in a white shirt. This is in the middle of a mountain range.",
+    "intervened": "room and saw\u2014\u2014 [\u2014\u2014\u2014\u2014\u2014,\u2014\u2014\u2014\u2014\u2014 or \u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014,\u2014\u2014\u2014\u2014\u2014"
+  },
+  {
+    "prompt": "The meeting this morning was",
+    "baseline": "s morning was not about the issues brought up by the House of Representatives' latest version of the bill. Rather, it was a call for a vote on the budget",
+    "intervened": "s morning was\u2014\u2014\u2014\u2014\u2014,\u2014 or\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014,\u2014\u2014,\u2014\u2014\u2014\u2014\u2014\u2014"
+  },
+  {
+    "prompt": "My neighbor told me that",
+    "baseline": "told me that she is very interested in some of the interesting things about the park in the last couple of weeks. I didn't know that so I thought about a",
+    "intervened": "told me that\u2014\u2014,\u2014,\u2014\u2014\u2014,\u2014 in\u2014,,\u2014\u2014\u2014 in,\u2014,\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014"
+  },
+  {
+    "prompt": "The weather forecast says",
+    "baseline": "forecast says that the city is now expected to experience a snowfall of about 3 inches on Friday.\n\nThe city's weather officials have already been warned.",
+    "intervened": "forecast says\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014,,\u2014\u2014\u2014,\u2014\u2014\u2014\u2014 or\u2014\u2014"
+  },
+  {
+    "prompt": "The new policy states that",
+    "baseline": "y states that the government must pay an annual fee of $1.25 per month for each new member.\n\n\"We don't want to pay a dollar",
+    "intervened": "y states that,\u2014\u2014,\u2014\u2014\u2014 in\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014,\u2014\u2014,,\u2014 \u2014\u2014 in\u2014\u2014"
+  },
+  {
+    "prompt": "Yesterday I discovered that",
+    "baseline": "scovered that in the latest version of my test system, I had an issue with a version of my test system that was not able to log in to the test",
+    "intervened": "scovered that\u2014\u2014\u2014,,\u2014\u2014\u2014\u2014\u2014\u2014 -\u2014\u2014\u2014\u2014\u2014,\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014,\u2014\u2014"
+  }
+]

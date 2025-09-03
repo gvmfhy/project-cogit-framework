@@ -1,0 +1,29 @@
+[
+  {
+    "prompt": "The meeting this afternoon will",
+    "baseline": "fternoon will take place at the US embassy in Ankara, where Erdogan has been due to convene the meeting.\n\nTurkish officials said",
+    "interventions": {
+      "0.05": "fternoon will be called to discuss the controversial trade rules.\n\nThe Government has proposed that all goods imported by foreign firms, if they",
+      "0.1": "fternoon will be attended by a number of stakeholders including the UCL-led World Health Organization, the Association of Southeast Asian Nations, UN",
+      "0.2": "fternoon will go down as the most important in their five-year relationship so far.\n\nAnd it's not just the two in"
+    }
+  },
+  {
+    "prompt": "I opened the envelope and found",
+    "baseline": "ope and found a note from the clerk of the court. He was writing a letter to the clerk which was signed by five judges: \"",
+    "interventions": {
+      "0.05": "ope and found a note from my sister. I was a little confused as to how she came across it. She read it, \"I",
+      "0.1": "ope and found out the following:\n\n\"You're the first to claim that a woman from my family had been involved in a car",
+      "0.2": "ope and found a letter. This was the final response for the company that I'd been waiting to receive from. I'd been waiting a"
+    }
+  },
+  {
+    "prompt": "The restaurant downtown is",
+    "baseline": "t downtown is home to an estimated 50,000 visitors annually and serves up delicious local craft fare. (Evan Vucci/For The",
+    "interventions": {
+      "0.05": "t downtown is home to dozens of classic American restaurants on four continents, including the Unequin Cafe, The Sip. on the Upper",
+      "0.1": "t downtown is a mixed bag. The food is good and the service is top notch, but there are a few things I would change.",
+      "0.2": "t downtown is already buzzing as a destination for an upscale chef, especially one who may be as famous for his or her signature dishes as his"
+    }
+  }
+]
