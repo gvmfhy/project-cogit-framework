@@ -2,13 +2,23 @@
 
 ## Study Design and Findings
 
-Understanding how to mathematically manipulate cognitive states in artificial neural networks has direct applications to brain-computer interfaces, where similar operators might modify biological neural activity to achieve targeted cognitive changes. This research investigates the fundamental question of whether learned mathematical transformations can predictably alter cognition while preserving structural coherence.
+Understanding how to mathematically manipulate cognitive states in artificial neural networks has direct applications to brain-computer interfaces, where similar operators might modify biological neural activity to achieve targeted cognitive changes. We tested whether we could learn mathematical operators to steer GPT-2 sentiment while keeping text readable.
 
-We tested whether we could learn mathematical operators to steer GPT-2 sentiment while keeping text readable. We extracted GPT-2's internal representations (768-dimensional vectors) from sentiment prompts and converted them into 10,000-dimensional binary vectors (+1/-1) using random projection - this high-dimensional format preserves meaning while making the vectors easier to manipulate mathematically. We then trained neural networks to transform positive sentiment vectors toward negative ones in this high-dimensional space. We tested two datasets: 10 simple prompts per sentiment ("I love my puppy" vs "That was terrible") and 50 diverse prompts with varied structures and contexts. For intervention, we intercepted GPT-2's activations during generation, converted them to high-dimensional space, applied our learned operator, converted back to the original format, and blended the results in.
+Data Generation Phase
+We created paired positive and negative prompts to extract contrasting cognitive states:
+  Positive prompts: "I love my new puppy, he is so...", "That was a wonderful and happy..."
+  Negative prompts: "The traffic was horrible this morning, it was...", "I had a terrible and awful..."
 
-The 10-prompt dataset failed - the operator overfitted and produced gibberish (dashes and punctuation instead of words). The 50-prompt dataset worked. When we applied the trained operator to neutral prompts like "The restaurant downtown is," baseline outputs were positive ("delicious local craft fare") but interventions introduced criticism ("mixed bag... there are a few things I would change"). The steering was controllable through blend ratios. Data diversity, not model complexity, determined whether we could manipulate sentiment while preserving coherence.
+We fed these prompts through GPT-2 and used TransformerLens to capture the model's internal activations from Layer 6. We'll convert all of these captured activations into a hyperdimensional computing space (HDC), and refer to them as cogit vectors. These vectors, in the sense of their sentiment, should be directionally opposed. 
 
-## ⚠️ Codebase Warning: Very Messy
+Next, we use these vectors to determine  mathematical "dial" that can turn a positive thought into a negative one.
+1.	Train a Transformation: We will train a simple machine learning model. Its only job is to learn the mathematical recipe (the "operator") that transforms a positive cogit vector into its corresponding negative cogit vector.
+2.	The Result: At the end of this phase, you will have a single, learned mathematical function: make_negative_operator. This function now represents the abstract concept of "making something more negative."
+3.	We then test this operator on sentences the model was not trained on, namely, neutral unfinished thoughts.
+
+When training data is small, the model overfits, and intervention renders incoherent response. When training data is increased, say, from 5 pairs of prompts to 50 pairs of prompts, coherence and directionality is maintained. Thus, this gives us indicator of a proof of concept that small, subtle interventions are an attack vector for cognitive securtiy. We expect to replicate these findings robustly in stronger models. 
+
+## ⚠️ Codebase Warning: Very Messy Pilot
 
 This repository contains a mix of working experimental code and broken/unused files from development. Most directories and files should be ignored.
 
