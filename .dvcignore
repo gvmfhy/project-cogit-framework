@@ -1,0 +1,268 @@
+# DVC Ignore File for Cognitive Manipulation Research Pipeline
+# Excludes files that should not be tracked by DVC but are needed for operations
+
+# =============================================================================
+# TEMPORARY AND CACHE FILES
+# =============================================================================
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.conda/
+
+# PyTorch model cache (let DVC handle model versioning)
+.torch/
+torch_cache/
+
+# Transformers model cache (large files, managed separately)
+transformers_cache/
+huggingface_cache/
+.cache/transformers/
+
+# =============================================================================
+# DEVELOPMENT AND DEBUGGING FILES
+# =============================================================================
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Pytest cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logging files (keep only structured logs)
+*.log
+logs/
+debug_*.txt
+
+# =============================================================================
+# SYSTEM AND ENVIRONMENT FILES
+# =============================================================================
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =============================================================================
+# TEMPORARY DATA AND INTERMEDIATE FILES
+# =============================================================================
+
+# Temporary model downloads (before processing)
+tmp/
+temp/
+.tmp/
+
+# Intermediate processing files
+*.tmp
+*.temp
+processing_*
+
+# Lock files
+*.lock
+pip-log.txt
+pip-delete-this-directory.txt
+
+# =============================================================================
+# EXPERIMENT-SPECIFIC EXCLUSIONS
+# =============================================================================
+
+# Model-specific temporary files
+gpt2_temp/
+llama_temp/
+mistral_temp/
+
+# HDC computation intermediates
+hdc_temp/
+projection_temp/
+
+# Visualization intermediate files
+plot_cache/
+figure_temp/
+
+# =============================================================================
+# LARGE BINARY FILES MANAGED SEPARATELY
+# =============================================================================
+
+# Pre-trained model weights (handled by model_cache system)
+*.bin
+*.safetensors
+pytorch_model.bin
+model.safetensors
+
+# Large datasets from external sources
+external_data/
+downloaded_datasets/
+
+# =============================================================================
+# SECURITY AND SENSITIVE FILES
+# =============================================================================
+
+# API keys and secrets
+.env
+.env.local
+.env.*.local
+secrets.yaml
+api_keys.txt
+
+# SSH keys
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# =============================================================================
+# DOCUMENTATION AND REPORTING INTERMEDIATES
+# =============================================================================
+
+# LaTeX intermediate files
+*.aux
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.out
+*.toc
+*.lot
+*.lof
+
+# Markdown temporary files
+*.md.backup
+*.md.tmp
+
+# =============================================================================
+# MLOPS AND MONITORING EXCLUSIONS
+# =============================================================================
+
+# Weights & Biases local files
+wandb/
+
+# MLflow artifacts (if using MLflow instead of DVC metrics)
+mlruns/
+
+# TensorBoard logs (keep structured logs only)
+tensorboard_logs/
+runs/
+
+# =============================================================================
+# RESEARCH WORKFLOW EXCLUSIONS
+# =============================================================================
+
+# Draft papers and documents
+drafts/
+paper_drafts/
+*.draft.*
+
+# Personal notes and scratch files
+notes.txt
+scratch.py
+test_*.py
+debug_*.py
+playground.ipynb
+
+# Literature and references (not part of reproducible pipeline)
+papers/
+references/
+literature/
+
+# =============================================================================
+# BACKUP AND VERSION FILES
+# =============================================================================
+
+# Backup files
+*.bak
+*.backup
+*_backup.*
+backup_*/
+
+# Version files from editors
+*.orig
+*.rej
+
+# =============================================================================
+# PERFORMANCE AND PROFILING DATA
+# =============================================================================
+
+# Profiling outputs
+*.prof
+*.cprofile
+profile_output/
+
+# Performance monitoring
+perf_data/
+memory_profiles/
+
+# =============================================================================
+# COMMUNICATION AND COLLABORATION
+# =============================================================================
+
+# Video recordings and demos
+*.mp4
+*.avi
+*.mov
+demos/
+recordings/
+
+# Presentation files
+*.pptx
+*.ppt
+presentations/
+
+# =============================================================================
+# CUSTOM PROJECT EXCLUSIONS
+# =============================================================================
+
+# Custom temporary directories for this project
+cogit_temp/
+manipulation_temp/
+experiment_scratch/
+
+# Old experiment results (archived)
+old_results/
+archived_experiments/
+
+# Personal experiment notes
+my_notes/
+personal/
+exploration/

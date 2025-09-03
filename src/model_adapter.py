@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 from typing import Dict, List, Any, Optional, Tuple
 from abc import ABC, abstractmethod
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoModel, AutoTokenizer, GPT2LMHeadModel
 import numpy as np
 import random
 
@@ -57,6 +57,7 @@ class GPT2Adapter(ModelAdapter):
         
         # Load model and tokenizer
         self.model = AutoModel.from_pretrained(model_name).to(self.device)
+        self.lm_model = GPT2LMHeadModel.from_pretrained(model_name).to(self.device)  # For generation
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.tokenizer.pad_token = self.tokenizer.eos_token
         
@@ -77,14 +78,15 @@ class GPT2Adapter(ModelAdapter):
             def hook_fn(module, input, output):
                 # GPT-2 outputs a tuple, we want the hidden states
                 hidden_states = output[0] if isinstance(output, tuple) else output
-                self.activations[layer_idx] = hidden_states.detach().cpu()
+                # CRITICAL FIX: Use detach().clone() to avoid MPS deadlock
+                self.activations[layer_idx] = hidden_states.detach().clone().cpu()
             return hook_fn
         
         # Register hooks
         for layer_idx in layers:
             if layer_idx < self.num_layers:
                 # Access GPT-2 transformer blocks
-                layer = self.model.transformer.h[layer_idx]
+                layer = self.model.h[layer_idx]
                 hook = layer.register_forward_hook(create_hook(layer_idx))
                 self.hooks.append(hook)
         
@@ -103,62 +105,43 @@ class GPT2Adapter(ModelAdapter):
     def inject_hidden_states(self, text: str, modified_states: Dict[int, torch.Tensor], layer: int) -> str:
         """Generate text with modified hidden states injected at specified layer"""
         
-        # This is complex - we need to modify forward pass
-        # For now, implementing a simplified version
-        class ModifiedGPT2(nn.Module):
-            def __init__(self, original_model, modified_states, target_layer):
-                super().__init__()
-                self.model = original_model
-                self.modified_states = modified_states
-                self.target_layer = target_layer
-                self.hook_handle = None
-                
-            def modify_hidden_states(self, module, input, output):
-                # Replace hidden states at target layer
-                if self.target_layer in self.modified_states:
-                    hidden_states = output[0] if isinstance(output, tuple) else output
-                    # Inject our modified states
-                    modified = self.modified_states[self.target_layer].to(hidden_states.device)
-                    # Ensure shapes match
-                    if modified.shape == hidden_states.shape:
+        # Custom generation loop that works with hooks
+        inputs = self.tokenizer(text, return_tensors="pt").to(self.device)
+        generated = inputs.input_ids.clone()
+        
+        max_tokens = 50
+        for _ in range(max_tokens):
+            # Create injection hook for this step
+            def inject_hook(module, input, output):
+                if layer in modified_states:
+                    hidden = output[0] if isinstance(output, tuple) else output
+                    modified = modified_states[layer].detach().clone().to(hidden.device)
+                    if modified.shape == hidden.shape:
                         if isinstance(output, tuple):
                             return (modified,) + output[1:]
                         return modified
                 return output
-                
-            def forward(self, **kwargs):
-                # Register modification hook
-                if self.target_layer < len(self.model.transformer.h):
-                    self.hook_handle = self.model.transformer.h[self.target_layer].register_forward_hook(
-                        self.modify_hidden_states
-                    )
-                
-                # Generate
-                outputs = self.model.generate(
-                    **kwargs,
-                    max_new_tokens=50,
-                    temperature=0.7,
-                    do_sample=True,
-                    pad_token_id=self.model.config.eos_token_id
-                )
-                
-                # Clean up hook
-                if self.hook_handle:
-                    self.hook_handle.remove()
-                    
-                return outputs
+            
+            # Register hook
+            handle = self.lm_model.transformer.h[layer].register_forward_hook(inject_hook)
+            
+            # Get next token
+            with torch.no_grad():
+                outputs = self.lm_model(generated)
+                logits = outputs.logits
+                next_token = torch.argmax(logits[0, -1, :]).unsqueeze(0).unsqueeze(0)
+            
+            # Remove hook immediately
+            handle.remove()
+            
+            # Add token
+            generated = torch.cat([generated, next_token], dim=1)
+            
+            # Stop at EOS
+            if next_token.item() == self.tokenizer.eos_token_id:
+                break
         
-        # Prepare input
-        inputs = self.tokenizer(text, return_tensors="pt").to(self.device)
-        
-        # Create modified model and generate
-        modified_model = ModifiedGPT2(self.model, modified_states, layer)
-        with torch.no_grad():
-            output_ids = modified_model(**inputs)
-        
-        # Decode output
-        output_text = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
-        return output_text
+        return self.tokenizer.decode(generated[0], skip_special_tokens=True)
     
     def get_layer_names(self) -> List[str]:
         """Get list of layer names"""
@@ -201,7 +184,8 @@ class LlamaAdapter(ModelAdapter):
             def hook_fn(module, input, output):
                 # Llama outputs hidden states directly
                 hidden_states = output[0] if isinstance(output, tuple) else output
-                self.activations[layer_idx] = hidden_states.detach().cpu()
+                # CRITICAL FIX: Use detach().clone() to avoid MPS deadlock
+                self.activations[layer_idx] = hidden_states.detach().clone().cpu()
             return hook_fn
         
         # Register hooks for Llama layers

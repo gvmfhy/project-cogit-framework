@@ -110,6 +110,12 @@ class OperatorTrainer:
             low_cogit = torch.tensor(pair['low_cogit'], dtype=torch.float32)
             high_cogit = torch.tensor(pair['high_cogit'], dtype=torch.float32)
             
+            # Handle batch/sequence dimensions - take mean across sequence
+            if len(low_cogit.shape) > 1:
+                low_cogit = low_cogit.mean(dim=0)
+            if len(high_cogit.shape) > 1:
+                high_cogit = high_cogit.mean(dim=0)
+            
             metadata = {
                 'dimension': pair['dimension'],
                 'layer': pair['layer'],
@@ -237,7 +243,7 @@ class BehavioralTester:
             manipulated_activation = self.projection.inverse_project(manipulated_cogit)
             
             # Generate text with original activation
-            original_output = self.adapter.model.generate(
+            original_output = self.adapter.lm_model.generate(
                 self.adapter.tokenizer(prompt, return_tensors="pt").input_ids,
                 max_new_tokens=30,
                 temperature=0.7,

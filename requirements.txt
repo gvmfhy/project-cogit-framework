@@ -1,0 +1,20 @@
+# Core dependencies for Cogit Framework
+# Clean, minimal environment for cognitive manipulation research
+
+# TransformerLens - Clean hook management and activation extraction
+transformer-lens==2.16.1
+
+# Core ML
+torch>=2.8.0
+numpy>=1.26.4
+
+# Data processing
+pyyaml>=6.0.2
+jsonlines>=4.0.0
+pandas>=2.3.2
+
+# Utilities
+tqdm>=4.67.1
+
+# For DVC pipeline (install separately if needed)
+# dvc>=3.0.0

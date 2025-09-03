@@ -1,0 +1,23 @@
+{
+  "certainty": {
+    "dimension": "certainty",
+    "epochs": 50,
+    "final_loss": 0.0037333332390214005,
+    "mean_similarity": 0.9981328845024109,
+    "training_samples": 48
+  },
+  "agreement": {
+    "dimension": "agreement",
+    "epochs": 50,
+    "final_loss": 0.003866646943303446,
+    "mean_similarity": 0.998066246509552,
+    "training_samples": 48
+  },
+  "emotion": {
+    "dimension": "emotion",
+    "epochs": 50,
+    "final_loss": 0.0038099998142570256,
+    "mean_similarity": 0.9981329441070557,
+    "training_samples": 36
+  }
+}

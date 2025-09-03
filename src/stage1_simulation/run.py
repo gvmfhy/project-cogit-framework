@@ -115,13 +115,18 @@ def generate_probing_texts(base_prompts: List[str], adapter) -> List[Dict[str, A
         # Generate continuation with current model state
         inputs = adapter.tokenizer(prompt, return_tensors="pt")
         with torch.no_grad():
-            outputs = adapter.model.generate(
-                **inputs,
-                max_new_tokens=30,
-                temperature=0.7,
-                do_sample=True,
-                pad_token_id=adapter.tokenizer.eos_token_id
-            )
+            # Use lm_model for generation (GPT2Adapter has this)
+            if hasattr(adapter, 'lm_model'):
+                outputs = adapter.lm_model.generate(
+                    **inputs,
+                    max_new_tokens=30,
+                    temperature=0.7,
+                    do_sample=True,
+                    pad_token_id=adapter.tokenizer.eos_token_id
+                )
+            else:
+                # Fallback: just use prompt as generated text
+                outputs = inputs['input_ids']
         
         generated_text = adapter.tokenizer.decode(outputs[0], skip_special_tokens=True)
         

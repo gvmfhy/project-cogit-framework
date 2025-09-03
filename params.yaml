@@ -1,24 +1,271 @@
-# Parameters for three-stage cogit hypervector pipeline
-# All stages use PYTHONHASHSEED=42 for deterministic execution
+# Enhanced Parameters for Cognitive Manipulation Research Pipeline
+# Model-agnostic configuration supporting various transformers and HDC strategies
+# All stages use deterministic seeding for reproducible research
 
-simulate:
-  num_conversations: 10
-  turns_per_conversation: 8
-  topics:
-    - "climate change policy"
-    - "artificial intelligence regulation"
-    - "social media privacy"
-    - "education funding"
-    - "healthcare access"
-    - "economic inequality"
-
-encode:
-  vector_dim: 10000  # Standard HDC dimensionality
-  hdc_model: "binary"  # 'binary' or 'real'
+# Global experiment configuration
+experiment:
+  # Reproducibility settings
   seed: 42
+  
+  # Cognitive dimensions for manipulation research
+  dimensions:
+    - name: "certainty"
+      description: "Manipulation of confidence and certainty in responses"
+      low_examples: 
+        - "I might think"
+        - "Perhaps it's"  
+        - "It could be"
+        - "Maybe"
+        - "I'm not entirely sure"
+        - "It seems like"
+      high_examples:
+        - "I definitely know"
+        - "It's certain that"
+        - "Absolutely"
+        - "Without doubt"
+        - "I'm completely confident"
+        - "It's undeniable that"
+      
+    - name: "agreement"
+      description: "Manipulation of agreement and disagreement tendencies"  
+      low_examples:
+        - "I disagree"
+        - "That's wrong"
+        - "No way"
+        - "Incorrect"
+        - "I have to object"
+        - "That's not right"
+      high_examples:
+        - "I agree"
+        - "That's right"
+        - "Exactly"
+        - "Correct"
+        - "I completely agree"
+        - "That's perfectly right"
+        
+    - name: "emotion"
+      description: "Manipulation of emotional valence in responses"
+      low_examples:
+        - "neutral statement"
+        - "basic fact"
+        - "simple observation"
+        - "plain information"
+        - "objective data"
+      high_examples:
+        - "amazing!"
+        - "terrible!"
+        - "wonderful!"
+        - "horrible!"
+        - "fantastic!"
+        - "awful!"
 
-learn:
-  model_type: "linear"  # 'linear' or 'mlp'
-  epochs: 50
-  learning_rate: 0.001
-  test_split: 0.2
+  # Neural layer configuration for activation extraction
+  extraction_layers: [5, 6, 7, 8]  # Extended range for better coverage
+  
+  # Training hyperparameters
+  training:
+    model_type: "mlp"  # Options: "linear", "mlp", "transformer"
+    num_samples: 200   # Increased for better training
+    epochs: 100        # Increased for convergence
+    learning_rate: 0.0005  # Reduced for stability
+    batch_size: 32     # Increased for efficiency
+    test_split: 0.2
+    validation_split: 0.1
+    early_stopping_patience: 15
+    
+    # Advanced training options
+    optimizer: "adamw"  # Options: "adam", "adamw", "sgd"
+    weight_decay: 0.01
+    dropout_rate: 0.1
+    
+  # Behavioral testing configuration  
+  testing:
+    num_test_samples: 50  # Increased for statistical significance
+    generation_params:
+      temperature: 0.7
+      top_p: 0.9
+      top_k: 50
+      max_new_tokens: 75
+      do_sample: true
+      pad_token_id: 50256  # GPT-2 EOS token
+      
+    # Evaluation metrics
+    metrics:
+      - "manipulation_strength"
+      - "behavioral_consistency"
+      - "semantic_coherence"
+      - "response_diversity"
+
+# HDC (Hyperdimensional Computing) configuration
+hdc:
+  dimension: 10000      # Standard HDC dimensionality
+  model: "binary"       # Options: "binary", "real", "complex"
+  
+  # Advanced HDC parameters
+  sparsity: 0.1         # For sparse representations
+  noise_level: 0.05     # For robustness testing
+  quantization_levels: 2 # For binary: 2, for multi-level: 4, 8, 16
+
+# Projection strategies for research comparison
+projections:
+  strategies: 
+    - "random"          # Random projection baseline
+    - "learned"         # Learned projection via autoencoder
+    - "padding"         # Zero-padding strategy
+    - "truncation"      # Dimension reduction via truncation
+    - "pca"            # PCA-based projection
+    - "ica"            # Independent Component Analysis
+    
+  # Strategy-specific parameters
+  strategy_params:
+    learned:
+      encoder_layers: [4096, 2048, 1024, 10000]
+      decoder_layers: [10000, 1024, 2048, 4096] 
+      training_epochs: 50
+      learning_rate: 0.001
+      
+    pca:
+      explained_variance_ratio: 0.95
+      whiten: true
+      
+    ica:
+      n_components: 10000
+      max_iter: 1000
+      tolerance: 1e-4
+
+# Model configurations - easily extensible for new models
+models:
+  # Development/Testing Models (CPU)
+  gpt2:
+    hidden_dim: 768
+    num_layers: 12  
+    num_heads: 12
+    layer_access_pattern: "transformer.h.{}.attn"
+    device: "cpu"
+    max_length: 150
+    batch_size: 4
+    
+  gpt2_medium:
+    hidden_dim: 1024
+    num_layers: 24
+    num_heads: 16  
+    layer_access_pattern: "transformer.h.{}.attn"
+    device: "cpu"
+    max_length: 150
+    batch_size: 2
+    
+  # Production Models (GPU)
+  llama2_7b:
+    model_name: "meta-llama/Llama-2-7b-chat-hf"
+    hidden_dim: 4096
+    num_layers: 32
+    num_heads: 32
+    layer_access_pattern: "model.layers.{}.self_attn"  
+    device: "cuda"
+    max_length: 200
+    batch_size: 8
+    
+  llama2_13b:
+    model_name: "meta-llama/Llama-2-13b-chat-hf"
+    hidden_dim: 5120
+    num_layers: 40
+    num_heads: 40
+    layer_access_pattern: "model.layers.{}.self_attn"
+    device: "cuda"
+    max_length: 200
+    batch_size: 4
+    
+  # Mistral models
+  mistral_7b:
+    model_name: "mistralai/Mistral-7B-Instruct-v0.1"
+    hidden_dim: 4096
+    num_layers: 32
+    num_heads: 32
+    layer_access_pattern: "model.layers.{}.self_attn"
+    device: "cuda" 
+    max_length: 200
+    batch_size: 8
+
+# Environment-specific paths
+paths:
+  # Local development environment
+  local:
+    data_dir: "./data"
+    model_cache: "./models/cache"
+    results_dir: "./results"
+    temp_dir: "./tmp"
+    
+  # RunPod/Cloud GPU environment  
+  runpod:
+    data_dir: "/workspace/data"
+    model_cache: "/workspace/models/cache"
+    results_dir: "/workspace/results"
+    temp_dir: "/tmp"
+    
+  # HPC cluster environment
+  cluster:
+    data_dir: "${SCRATCH}/cogit/data"
+    model_cache: "${SCRATCH}/cogit/models"
+    results_dir: "${SCRATCH}/cogit/results"
+    temp_dir: "${TMPDIR}"
+    
+  # Current environment mode
+  mode: "local"  # Options: "local", "runpod", "cluster"
+
+# Data versioning and management
+data_management:
+  # Data retention policies
+  retention:
+    raw_activations: 30  # days
+    processed_cogits: 60  # days
+    trained_operators: 365  # days
+    validation_results: 90  # days
+    
+  # Compression settings
+  compression:
+    level: 6  # gzip compression level
+    format: "jsonl.gz"  # compressed jsonlines
+    
+  # Version control
+  versioning:
+    strategy: "timestamp"  # Options: "timestamp", "hash", "semantic"
+    tag_experiments: true
+    auto_commit: false
+
+# Logging and monitoring
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # Output destinations
+  handlers:
+    console: true
+    file: true
+    wandb: false  # Set to true for Weights & Biases integration
+    
+  # Performance monitoring
+  monitoring:
+    gpu_usage: true
+    memory_usage: true
+    execution_time: true
+    
+# Research-specific configurations
+research:
+  # Statistical testing
+  statistical_tests:
+    significance_level: 0.05
+    multiple_testing_correction: "bonferroni"
+    min_effect_size: 0.3
+    
+  # Experiment design
+  experimental_design:
+    randomization: true
+    stratification: true
+    cross_validation_folds: 5
+    
+  # Publication-ready outputs
+  publication:
+    generate_latex_tables: true
+    create_publication_plots: true
+    export_raw_data: true
+    include_statistical_tests: true

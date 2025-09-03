@@ -1,45 +1,253 @@
-# DVC Pipeline: Three-stage cogit hypervector pipeline
-# simulate → encode → learn mapped to /data and /models paths
+# DVC Pipeline: Cognitive Manipulation Research Tool
+# Three-stage hyperdimensional computing pipeline for LLM cognitive manipulation research
+# Model-agnostic design supporting GPT-2, Llama, and other transformer models
 
 stages:
-  simulate:
-    cmd: python src/stage1_simulation/run.py
+  # =============================================================================
+  # STAGE 1: ACTIVATION EXTRACTION
+  # Extracts neural activations from target models using various cognitive prompts
+  # Supports different models and cognitive dimensions for manipulation research
+  # =============================================================================
+  activation_extraction:
+    cmd: >
+      python src/stage1_simulation/run.py 
+      --config config.yaml 
+      --output-dir ${item.data_dir}/raw/activations
+      --model-name ${item.model.name}
+      --extraction-layers ${item.experiment.extraction_layers}
+      --num-samples ${item.experiment.training.num_samples}
+      --seed ${item.experiment.seed}
     deps:
       - src/stage1_simulation/
+      - src/model_adapter.py
+      - config.yaml
     outs:
-      - data/raw/sims/
+      - ${item.paths.${item.paths.mode}.data_dir}/raw/activations/:
+          desc: "Raw neural activations from transformer models"
+          cache: true
     params:
-      - simulate.num_conversations
-      - simulate.turns_per_conversation
-      - simulate.topics
+      - item.model.name
+      - item.model.configs
+      - item.experiment.dimensions
+      - item.experiment.extraction_layers
+      - item.experiment.training.num_samples
+      - item.experiment.seed
+      - item.paths.mode
     metrics:
-      - results/simulate_metrics.json
-    
-  encode:
-    cmd: python src/stage2_encoding/run.py  
+      - ${item.paths.${item.paths.mode}.results_dir}/activation_metrics.json:
+          cache: false
+    meta:
+      description: "Extract neural activations from transformer models for cognitive manipulation"
+      tags: ["extraction", "neural-analysis", "cognitive-dimensions"]
+
+  # =============================================================================
+  # STAGE 2: HDC PROJECTION & ENCODING
+  # Projects neural activations into hyperdimensional space using various strategies
+  # Supports multiple projection methods for research comparison
+  # =============================================================================
+  hdc_projection:
+    foreach: ${item.projections.strategies}
+    do:
+      cmd: >
+        python src/stage2_encoding/run.py
+        --input-dir ${item.paths.${item.paths.mode}.data_dir}/raw/activations
+        --output-dir ${item.paths.${item.paths.mode}.data_dir}/processed/cogits
+        --projection-strategy ${item}
+        --hdc-dimension ${item.hdc.dimension}
+        --hdc-model ${item.hdc.model}
+        --seed ${item.experiment.seed}
+      deps:
+        - src/stage2_encoding/
+        - ${item.paths.${item.paths.mode}.data_dir}/raw/activations/
+        - config.yaml
+      outs:
+        - ${item.paths.${item.paths.mode}.data_dir}/processed/cogits/${item}/:
+            desc: "HDC-projected cognitive vectors using ${item} strategy"
+            cache: true
+      params:
+        - item.hdc.dimension
+        - item.hdc.model
+        - item.projections.strategies
+        - item.experiment.seed
+        - item.paths.mode
+      metrics:
+        - ${item.paths.${item.paths.mode}.results_dir}/hdc_projection_${item}_metrics.json:
+            cache: false
+      meta:
+        description: "Project neural activations to hyperdimensional space using ${item} strategy"
+        tags: ["hdc", "projection", "encoding", "${item}"]
+
+  # =============================================================================
+  # STAGE 3: OPERATOR LEARNING & VALIDATION
+  # Learn manipulation operators and validate cognitive effects
+  # Supports multiple models and comprehensive behavioral testing
+  # =============================================================================
+  operator_learning:
+    foreach: ${item.experiment.dimensions}
+    do:
+      cmd: >
+        python src/stage3_learning/run.py
+        --input-dir ${item.paths.${item.paths.mode}.data_dir}/processed/cogits
+        --output-dir ${item.paths.${item.paths.mode}.results_dir}/operators
+        --model-dir ${item.paths.${item.paths.mode}.model_cache}
+        --dimension-name ${item.name}
+        --model-type ${item.experiment.training.model_type}
+        --epochs ${item.experiment.training.epochs}
+        --learning-rate ${item.experiment.training.learning_rate}
+        --batch-size ${item.experiment.training.batch_size}
+        --test-split ${item.experiment.training.test_split}
+        --seed ${item.experiment.seed}
+      deps:
+        - src/stage3_learning/
+        - ${item.paths.${item.paths.mode}.data_dir}/processed/cogits/
+        - config.yaml
+      outs:
+        - ${item.paths.${item.paths.mode}.results_dir}/operators/${item.name}/:
+            desc: "Trained cognitive manipulation operators for ${item.name} dimension"
+            cache: true
+      params:
+        - item.experiment.training.model_type
+        - item.experiment.training.epochs
+        - item.experiment.training.learning_rate  
+        - item.experiment.training.batch_size
+        - item.experiment.training.test_split
+        - item.experiment.seed
+        - item.paths.mode
+      metrics:
+        - ${item.paths.${item.paths.mode}.results_dir}/operator_${item.name}_metrics.json:
+            cache: false
+      meta:
+        description: "Learn manipulation operators for ${item.name} cognitive dimension"
+        tags: ["learning", "operators", "cognitive-manipulation", "${item.name}"]
+
+  # =============================================================================
+  # STAGE 4: BEHAVIORAL VALIDATION
+  # Test learned operators on behavioral tasks to measure cognitive effects
+  # Comprehensive evaluation across different models and test scenarios
+  # =============================================================================
+  behavioral_validation:
+    foreach: ${item.experiment.dimensions}
+    do:
+      cmd: >
+        python src/stage4_validation/run.py
+        --operator-dir ${item.paths.${item.paths.mode}.results_dir}/operators/${item.name}
+        --output-dir ${item.paths.${item.paths.mode}.results_dir}/validation
+        --model-name ${item.model.name}
+        --dimension-name ${item.name}
+        --num-test-samples ${item.experiment.testing.num_test_samples}
+        --generation-params '${item.experiment.testing.generation_params}'
+        --seed ${item.experiment.seed}
+      deps:
+        - src/stage4_validation/
+        - ${item.paths.${item.paths.mode}.results_dir}/operators/${item.name}/
+        - config.yaml
+      outs:
+        - ${item.paths.${item.paths.mode}.results_dir}/validation/${item.name}/:
+            desc: "Behavioral validation results for ${item.name} dimension"
+            cache: false  # Don't cache validation results for freshness
+      params:
+        - item.experiment.testing.num_test_samples
+        - item.experiment.testing.generation_params
+        - item.model.name
+        - item.experiment.seed
+        - item.paths.mode
+      metrics:
+        - ${item.paths.${item.paths.mode}.results_dir}/validation_${item.name}_metrics.json:
+            cache: false
+        - ${item.paths.${item.paths.mode}.results_dir}/behavioral_scores_${item.name}.json:
+            cache: false
+      plots:
+        - ${item.paths.${item.paths.mode}.results_dir}/plots/${item.name}_behavioral_changes.png:
+            cache: false
+        - ${item.paths.${item.paths.mode}.results_dir}/plots/${item.name}_manipulation_strength.png:
+            cache: false
+      meta:
+        description: "Validate behavioral effects of ${item.name} cognitive manipulation"
+        tags: ["validation", "behavioral", "testing", "${item.name}"]
+
+  # =============================================================================
+  # STAGE 5: COMPARATIVE ANALYSIS
+  # Cross-model and cross-strategy analysis for research insights  
+  # Generates comprehensive reports comparing different approaches
+  # =============================================================================
+  comparative_analysis:
+    cmd: >
+      python src/analysis/comparative_analysis.py
+      --results-dir ${item.paths.${item.paths.mode}.results_dir}
+      --output-dir ${item.paths.${item.paths.mode}.results_dir}/analysis
+      --models ${item.model.name}
+      --dimensions ${item.experiment.dimensions}
+      --projections ${item.projections.strategies}
     deps:
-      - src/stage2_encoding/
-      - data/raw/sims/
+      - src/analysis/
+      - ${item.paths.${item.paths.mode}.results_dir}/validation/
+      - ${item.paths.${item.paths.mode}.results_dir}/operators/
+      - config.yaml
     outs:
-      - data/processed/cogits/
+      - ${item.paths.${item.paths.mode}.results_dir}/analysis/:
+          desc: "Comparative analysis across models, dimensions, and projections"
+          cache: false
     params:
-      - encode.vector_dim
-      - encode.hdc_model
-      - encode.seed
+      - item.model.name
+      - item.experiment.dimensions
+      - item.projections.strategies
+      - item.paths.mode
     metrics:
-      - results/encode_metrics.json
-      
-  learn:
-    cmd: python src/stage3_learning/run.py
+      - ${item.paths.${item.paths.mode}.results_dir}/comparative_metrics.json:
+          cache: false
+    plots:
+      - ${item.paths.${item.paths.mode}.results_dir}/plots/cross_model_comparison.png:
+          cache: false
+      - ${item.paths.${item.paths.mode}.results_dir}/plots/projection_effectiveness.png:
+          cache: false
+      - ${item.paths.${item.paths.mode}.results_dir}/plots/dimension_heatmap.png:
+          cache: false
+    meta:
+      description: "Cross-model comparative analysis of cognitive manipulation effectiveness"
+      tags: ["analysis", "comparison", "research", "insights"]
+
+  # =============================================================================
+  # STAGE 6: EXPERIMENT REPRODUCIBILITY
+  # Generate reproducibility artifacts and experiment documentation
+  # Ensures research reproducibility and scientific rigor
+  # =============================================================================
+  generate_reproducibility_artifacts:
+    cmd: >
+      python src/reproducibility/generate_artifacts.py
+      --config config.yaml
+      --results-dir ${item.paths.${item.paths.mode}.results_dir}
+      --output-dir ${item.paths.${item.paths.mode}.results_dir}/reproducibility
+      --git-commit $(git rev-parse HEAD)
+      --environment-file requirements.txt
     deps:
-      - src/stage3_learning/
-      - data/processed/cogits/
+      - src/reproducibility/
+      - ${item.paths.${item.paths.mode}.results_dir}/analysis/
+      - config.yaml
+      - requirements.txt
     outs:
-      - models/operators/
-      - results/metrics/
-    params:
-      - learn.model_type
-      - learn.epochs
-      - learn.learning_rate
+      - ${item.paths.${item.paths.mode}.results_dir}/reproducibility/:
+          desc: "Reproducibility artifacts and experiment documentation"
+          cache: false
     metrics:
-      - results/learn_metrics.json
+      - ${item.paths.${item.paths.mode}.results_dir}/experiment_metadata.json:
+          cache: false
+    meta:
+      description: "Generate experiment reproducibility artifacts and documentation"
+      tags: ["reproducibility", "documentation", "scientific-rigor"]
+
+# =============================================================================
+# PIPELINE EXECUTION MODES
+# Different execution patterns for various research scenarios
+# =============================================================================
+
+# Quick development mode - single model, single projection
+vars:
+  - config.yaml:item
+
+# Full research mode - all models, all projections (uncomment for full experiments)
+# vars:
+#   - config.yaml:models
+#   - config.yaml:projections
+
+# Custom experiment mode - specify via command line parameters
+# Use: dvc repro -P custom_model=llama -P custom_projection=learned

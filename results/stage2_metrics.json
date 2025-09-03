@@ -1,0 +1,7 @@
+{
+  "projection": "random",
+  "input_dim": 768,
+  "hdc_dim": 10000,
+  "num_pairs": 12,
+  "timestamp": "2025-09-03T02:48:37.383908"
+}

@@ -1,0 +1,12 @@
+{
+  "input_file": "data/raw/sims/activations_20250903_031923.jsonl",
+  "num_pairs": 132,
+  "dimensions": [
+    "certainty",
+    "emotion",
+    "agreement"
+  ],
+  "hd_dim": 10000,
+  "input_dim": 768,
+  "timestamp": "20250903_032036"
+}
