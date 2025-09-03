@@ -1,0 +1,24 @@
+# Parameters for three-stage cogit hypervector pipeline
+# All stages use PYTHONHASHSEED=42 for deterministic execution
+
+simulate:
+  num_conversations: 10
+  turns_per_conversation: 8
+  topics:
+    - "climate change policy"
+    - "artificial intelligence regulation"
+    - "social media privacy"
+    - "education funding"
+    - "healthcare access"
+    - "economic inequality"
+
+encode:
+  vector_dim: 10000  # Standard HDC dimensionality
+  hdc_model: "binary"  # 'binary' or 'real'
+  seed: 42
+
+learn:
+  model_type: "linear"  # 'linear' or 'mlp'
+  epochs: 50
+  learning_rate: 0.001
+  test_split: 0.2

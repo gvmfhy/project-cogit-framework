@@ -1,0 +1,45 @@
+# DVC Pipeline: Three-stage cogit hypervector pipeline
+# simulate → encode → learn mapped to /data and /models paths
+
+stages:
+  simulate:
+    cmd: python src/stage1_simulation/run.py
+    deps:
+      - src/stage1_simulation/
+    outs:
+      - data/raw/sims/
+    params:
+      - simulate.num_conversations
+      - simulate.turns_per_conversation
+      - simulate.topics
+    metrics:
+      - results/simulate_metrics.json
+    
+  encode:
+    cmd: python src/stage2_encoding/run.py  
+    deps:
+      - src/stage2_encoding/
+      - data/raw/sims/
+    outs:
+      - data/processed/cogits/
+    params:
+      - encode.vector_dim
+      - encode.hdc_model
+      - encode.seed
+    metrics:
+      - results/encode_metrics.json
+      
+  learn:
+    cmd: python src/stage3_learning/run.py
+    deps:
+      - src/stage3_learning/
+      - data/processed/cogits/
+    outs:
+      - models/operators/
+      - results/metrics/
+    params:
+      - learn.model_type
+      - learn.epochs
+      - learn.learning_rate
+    metrics:
+      - results/learn_metrics.json
